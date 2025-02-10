@@ -33,3 +33,9 @@ With it you get an app that:
 - Uses the [Azure Static Web Apps CLI](https://azure.github.io/static-web-apps-cli) which enables emulating your production environment locally, and gets you ready for deploying to Azure Static Web Apps!
 
 and all with just a few button clicks 😊.
+
+## Notes
+
+Need to get images working; right now the api receipe image endpoint is throwing an exception in NC and just returning the default PNG. Need to debug that on the nextcloud side more.
+
+* [NC Cookbook API Docs](https://nextcloud.github.io/cookbook/dev/api/0.1.2/index.html)

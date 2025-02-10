@@ -4,61 +4,158 @@ import { resolveRouterPath } from '../router';
 
 import '@shoelace-style/shoelace/dist/components/card/card.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/input/input.js';
+import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
+import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '@shoelace-style/shoelace/dist/components/alert/alert.js';
+import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 
 import { styles } from '../styles/shared-styles';
+import '../components/recipe-list';
 
 @customElement('app-home')
 export class AppHome extends LitElement {
 
   // For more information on using properties and state in lit
   // check out this link https://lit.dev/docs/components/properties/
-  @property() message = 'Welcome!';
+  @property() message = 'Nextcloud Cookbook';
+  @property() apiUrl = '';
+  @property() apiToken = '';
+  @property() connectionStatus: 'disconnected' | 'connected' | 'error' = 'disconnected';
+  @property() apiVersion = '';
+  @property() recipes: any[] = [];
+  @property() isLoading = false;
 
   static styles = [
     styles,
     css`
-    #welcomeBar {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-    }
-
-    #welcomeCard,
-    #infoCard {
-      padding: 18px;
-      padding-top: 0px;
-    }
-
-    sl-card::part(footer) {
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    @media(min-width: 750px) {
-      sl-card {
-        width: 70vw;
+      main {
+        margin-top: 0;
+        padding: 1rem;
       }
-    }
 
-
-    @media (horizontal-viewport-segments: 2) {
-      #welcomeBar {
-        flex-direction: row;
-        align-items: flex-start;
+      header {
+        display: flex;
         justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
       }
 
-      #welcomeCard {
-        margin-right: 64px;
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        max-width: 200px;
+        margin-right: 1rem;
       }
+
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      sl-input {
+        width: 100%;
+      }
+
+      .settings-button {
+        position: fixed;
+        bottom: 1rem;
+        right: 1rem;
+      }
+
+      sl-dialog::part(body) {
+        min-width: 300px;
+      }
+
+      .alert-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1000;
+      }
+    `];
+
+  async checkConnection() {
+    try {
+      if (!this.apiUrl || !this.apiToken) {
+        this.connectionStatus = 'disconnected';
+        return;
+      }
+
+      const response = await fetch(`${this.apiUrl}/api/version`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${this.apiToken}`,
+          'Accept': 'application/json'
+        },
+        mode: 'cors',
+        credentials: 'omit'
+      });
+
+      if (!response.ok) {
+        throw new Error('Connection failed');
+      }
+
+      const data = await response.json();
+      this.apiVersion = data.cookbook_version || 'Unknown';
+      this.connectionStatus = 'connected';
+    } catch (error) {
+      console.error('Connection error:', error);
+      this.connectionStatus = 'error';
+      this.showAlert('error', 'Failed to connect to Nextcloud Cookbook. Please check CORS settings in your Nextcloud instance.');
     }
-  `];
+  }
 
   async firstUpdated() {
     // this method is a lifecycle even in lit
     // for more info check out the lit docs https://lit.dev/docs/components/lifecycle/
     console.log('This is your home page');
+    // Load saved values when component first updates
+    this.apiUrl = localStorage.getItem('nextcloud-api-url') || '';
+    this.apiToken = localStorage.getItem('nextcloud-api-token') || '';
+    await this.checkConnection();
+  }
+
+  showSettings() {
+    const dialog = this.shadowRoot?.querySelector<any>('sl-dialog');
+    if (dialog) {
+      dialog.show();
+    }
+  }
+
+  showAlert(type: 'success' | 'error', message: string) {
+    const alert = Object.assign(document.createElement('sl-alert'), {
+      variant: type,
+      closable: true,
+      duration: 3000,
+      innerHTML: `
+        <sl-icon slot="icon" name="${type === 'success' ? 'check2-circle' : 'exclamation-circle'}"></sl-icon>
+        ${message}
+      `
+    });
+
+    const container = this.shadowRoot?.querySelector('.alert-container');
+    container?.appendChild(alert);
+    alert.toast();
+  }
+
+  async saveConfiguration() {
+    try {
+      localStorage.setItem('nextcloud-api-url', this.apiUrl);
+      localStorage.setItem('nextcloud-api-token', this.apiToken);
+      const dialog = this.shadowRoot?.querySelector<any>('sl-dialog');
+      if (dialog) {
+        dialog.hide();
+      }
+      await this.checkConnection();
+      this.showAlert('success', 'Settings saved successfully');
+    } catch (error) {
+      this.showAlert('error', 'Failed to save settings');
+    }
   }
 
   share() {
@@ -71,66 +168,92 @@ export class AppHome extends LitElement {
     }
   }
 
+  handleApiUrlChange(e: any) {
+    this.apiUrl = e.target.value;
+  }
+
+  handleApiTokenChange(e: any) {
+    this.apiToken = e.target.value;
+  }
+
+  async fetchRecipes() {
+    try {
+      this.isLoading = true;
+      const response = await fetch(`${this.apiUrl}/recipes`, {
+        headers: {
+          'Authorization': `Basic ${this.apiToken}`,
+          'Accept': 'application/json'
+        },
+        mode: 'cors',
+        credentials: 'include'
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch recipes');
+      const data = await response.json();
+      this.recipes = data;
+      this.isLoading = false;
+    } catch (error) {
+      console.error('Failed to fetch recipes:', error);
+      this.showAlert('error', 'Failed to fetch recipes');
+      this.isLoading = false;
+    }
+  }
+
   render() {
     return html`
-      <app-header></app-header>
+      <header>
+        <div class="connection-status">
+          <sl-icon
+            name="${this.connectionStatus === 'connected' ? 'check-circle-fill' :
+                   this.connectionStatus === 'error' ? 'exclamation-circle-fill' :
+                   'dash-circle-fill'}"
+            style="color: ${this.connectionStatus === 'connected' ? 'var(--sl-color-success-500)' :
+                          this.connectionStatus === 'error' ? 'var(--sl-color-danger-500)' :
+                          'var(--sl-color-neutral-500)'}"
+          ></sl-icon>
+          ${this.connectionStatus === 'connected' ?
+            html`<span>Connected (v${this.apiVersion})</span>` :
+            html`<span>${this.connectionStatus}</span>`}
+        </div>
+        <sl-button variant="text" size="small" @click=${this.showSettings}>
+          <sl-icon slot="prefix" name="gear"></sl-icon>
+          Settings
+        </sl-button>
+      </header>
+
+      <div class="alert-container"></div>
 
       <main>
-        <div id="welcomeBar">
-          <sl-card id="welcomeCard">
-            <div slot="header">
-              <h2>${this.message}</h2>
-            </div>
-
-            <p>
-              For more information on the PWABuilder pwa-starter, check out the
-              <a href="https://docs.pwabuilder.com/#/starter/quick-start">
-                documentation</a>.
-            </p>
-
-            <p id="mainInfo">
-              Welcome to the
-              <a href="https://pwabuilder.com">PWABuilder</a>
-              pwa-starter! Be sure to head back to
-              <a href="https://pwabuilder.com">PWABuilder</a>
-              when you are ready to ship this PWA to the Microsoft Store, Google Play
-              and the Apple App Store!
-            </p>
-
-            ${'share' in navigator
-              ? html`<sl-button slot="footer" variant="default" @click="${this.share}">
-                        <sl-icon slot="prefix" name="share"></sl-icon>
-                        Share this Starter!
-                      </sl-button>`
-              : null}
-          </sl-card>
-
-          <sl-card id="infoCard">
-            <h2>Technology Used</h2>
-
-            <ul>
-              <li>
-                <a href="https://www.typescriptlang.org/">TypeScript</a>
-              </li>
-
-              <li>
-                <a href="https://lit.dev">lit</a>
-              </li>
-
-              <li>
-                <a href="https://shoelace.style/">Shoelace</a>
-              </li>
-
-              <li>
-                <a href="https://github.com/thepassle/app-tools/blob/master/router/README.md"
-                  >App Tools Router</a>
-              </li>
-            </ul>
-          </sl-card>
-
-          <sl-button href="${resolveRouterPath('about')}" variant="primary">Navigate to About</sl-button>
-        </div>
+        <recipe-list
+          .apiUrl=${this.apiUrl}
+          .apiToken=${this.apiToken}
+          @fetch-error=${(e: CustomEvent) => this.showAlert('error', e.detail)}>
+        </recipe-list>
       </main>
+
+      <sl-dialog label="Nextcloud Cookbook Settings" class="dialog-overview">
+        <div class="input-group">
+          <sl-input
+            label="Nextcloud Cookbook API URL"
+            type="url"
+            .value="${this.apiUrl}"
+            @sl-input="${this.handleApiUrlChange}"
+            placeholder="https://your-nextcloud.com/apps/cookbook/api"
+          ></sl-input>
+
+          <sl-input
+            label="API Auth Token"
+            type="password"
+            .value="${this.apiToken}"
+            @sl-input="${this.handleApiTokenChange}"
+            placeholder="Enter your API token"
+          ></sl-input>
+        </div>
+
+        <sl-button slot="footer" variant="primary" @click="${this.saveConfiguration}">
+          Save Configuration
+        </sl-button>
+      </sl-dialog>
     `;
   }
 }

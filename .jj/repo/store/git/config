@@ -1,0 +1,11 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = true
+	logallrefupdates = false
+	symlinks = true
+	ignorecase = false
+	precomposeunicode = false
+[remote "origin"]
+	url = git@github.com:saywebsolutions/pwa-nc-cookbook.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
