@@ -30,6 +30,14 @@ export const router = new Router({
           lazy(() => import('./pages/app-about/app-about.js')),
         ],
         render: () => html`<app-about></app-about>`
+      },
+      {
+        path: resolveRouterPath('recipe/:id'),
+        title: 'Recipe',
+        plugins: [
+          lazy(() => import('./pages/recipe-detail.js')),
+        ],
+        render: ({ params }) => html`<recipe-detail .recipeId=${params.id}></recipe-detail>`
       }
     ]
   });
