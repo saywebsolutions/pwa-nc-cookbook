@@ -75,6 +75,21 @@ export class AppHeader extends LitElement {
     .settings-icon:hover {
       color: var(--sl-color-neutral-800);
     }
+    .right-section {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .search-icon {
+      color: var(--sl-color-neutral-600);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      font-size: 1.4rem;
+    }
+    .search-icon:hover {
+      color: var(--sl-color-neutral-800);
+    }
   `;
 
   async firstUpdated() {
@@ -148,6 +163,18 @@ export class AppHeader extends LitElement {
     alert.toast();
   }
 
+  private handleSearch(e: KeyboardEvent) {
+    const input = e.target as HTMLInputElement;
+    if (e.key === 'Enter' && input.value.trim()) {
+      const query = encodeURIComponent(input.value.trim());
+      window.location.href = `/search/${query}`;
+      const dialog = this.shadowRoot?.querySelector('sl-dialog[label="Search Recipes"]');
+      if (dialog) {
+        (dialog as any).hide();
+      }
+    }
+  }
+
   render() {
     return html`
       <header>
@@ -168,15 +195,32 @@ export class AppHeader extends LitElement {
             `}
           </div>
         </div>
-        <sl-icon
-          name="gear"
-          class="settings-icon"
-          @click=${() => {
-            const dialog = this.shadowRoot?.querySelector('sl-dialog');
-            if (dialog) dialog.show();
-          }}
-        ></sl-icon>
+        <div class="right-section">
+          <sl-icon
+            name="search"
+            class="search-icon"
+            @click=${() => {
+              const dialog = this.shadowRoot?.querySelector('sl-dialog[label="Search Recipes"]');
+              if (dialog) (dialog as any).show();
+            }}
+          ></sl-icon>
+          <sl-icon
+            name="gear"
+            class="settings-icon"
+            @click=${() => {
+              const dialog = this.shadowRoot?.querySelector('sl-dialog[label="Nextcloud Cookbook Settings"]');
+              if (dialog) (dialog as any).show();
+            }}
+          ></sl-icon>
+        </div>
       </header>
+
+      <sl-dialog label="Search Recipes">
+        <sl-input
+          placeholder="Search recipes..."
+          @keyup=${this.handleSearch}
+        ></sl-input>
+      </sl-dialog>
 
       <sl-dialog label="Nextcloud Cookbook Settings" class="dialog-overview">
         <div class="input-group">

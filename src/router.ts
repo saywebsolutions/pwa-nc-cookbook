@@ -13,6 +13,7 @@ import { lazy } from '@thepassle/app-tools/router/plugins/lazy.js';
 import { title } from '@thepassle/app-tools/router/plugins/title.js';
 
 import './pages/app-home.js';
+import './pages/search-results';
 
 const baseURL: string = (import.meta as any).env.BASE_URL;
 
@@ -38,6 +39,11 @@ export const router = new Router({
           lazy(() => import('./pages/recipe-detail.js')),
         ],
         render: ({ params }) => html`<recipe-detail .recipeId=${params.id}></recipe-detail>`
+      },
+      {
+        path: '/search/:query',
+        title: 'Search',
+        render: ({ params }) => html`<search-results .query=${params.query}></search-results>`
       }
     ]
   });
